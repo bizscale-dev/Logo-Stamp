@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Apply one logo to many images at once — pick the corner, size, opacity and padding. Runs entirely in your browser.">
+<title>Logo Stamp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%B7%EF%B8%8F%3C/text%3E%3C/svg%3E">
+
+<style>
+  :root {
+    --ground: #F4F6F9;
+    --surface: #FFFFFF;
+    --surface-2: #EEF1F6;
+    --line: #DDE2EB;
+    --ink: #1A2130;
+    --muted: #616B7D;
+    --accent: #3B5BDB;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #E7ECFD;
+    --good: #1E874B;
+    --shadow: 0 1px 2px rgba(20, 28, 45, .06), 0 8px 24px rgba(20, 28, 45, .06);
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0F1218;
+      --surface: #171B23;
+      --surface-2: #1F242E;
+      --line: #2C323E;
+      --ink: #E7EAF0;
+      --muted: #97A0B2;
+      --accent: #7E9BFF;
+      --accent-ink: #0F1218;
+      --accent-soft: #232A3D;
+      --good: #52C98A;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 30px rgba(0, 0, 0, .35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0F1218;
+    --surface: #171B23;
+    --surface-2: #1F242E;
+    --line: #2C323E;
+    --ink: #E7EAF0;
+    --muted: #97A0B2;
+    --accent: #7E9BFF;
+    --accent-ink: #0F1218;
+    --accent-soft: #232A3D;
+    --good: #52C98A;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 30px rgba(0, 0, 0, .35);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: "Archivo", system-ui, sans-serif; text-wrap: balance; letter-spacing: -0.01em; }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 24px; }
+
+  header {
+    display: flex; align-items: center; gap: 16px;
+    padding-bottom: 20px; border-bottom: 1px solid var(--line); margin-bottom: 24px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand .mark {
+    font-family: "Archivo"; font-weight: 700; font-size: 20px; letter-spacing: -0.02em;
+  }
+  .brand .sub { font-family: "IBM Plex Mono"; font-size: 12px; color: var(--muted); }
+  header .spacer { flex: 1; }
+
+  button {
+    font: inherit; cursor: pointer; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink);
+    border-radius: 9px; padding: 9px 14px; transition: background .15s, border-color .15s, transform .1s;
+  }
+  button:hover { border-color: var(--accent); }
+  button:active { transform: translateY(1px); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary {
+    background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+    font-weight: 600;
+  }
+  button.primary:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.06); }
+  .theme-toggle { width: 40px; height: 38px; display: grid; place-items: center; padding: 0; }
+
+  .layout { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 880px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 20px;
+  }
+  .panel + .panel { margin-top: 20px; }
+
+  .field { margin-bottom: 20px; }
+  .field:last-child { margin-bottom: 0; }
+  label.h {
+    display: block; font-family: "IBM Plex Mono"; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .09em; color: var(--muted);
+    margin-bottom: 9px;
+  }
+
+  .logo-drop {
+    border: 1.5px dashed var(--line); border-radius: 10px; padding: 18px;
+    text-align: center; color: var(--muted); font-size: 13px; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .logo-drop:hover, .logo-drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  .logo-drop img { max-height: 64px; max-width: 100%; margin-bottom: 8px; }
+
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .grid3 button {
+    aspect-ratio: 1; padding: 0; display: grid; place-items: center;
+    background: var(--surface-2); border-radius: 8px;
+  }
+  .grid3 button span {
+    width: 12px; height: 12px; border-radius: 3px; background: var(--muted); opacity: .5;
+  }
+  .grid3 button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+  .grid3 button[aria-pressed="true"] span { background: var(--accent); opacity: 1; }
+
+  .slider-row { display: flex; align-items: center; gap: 12px; }
+  input[type=range] { flex: 1; accent-color: var(--accent); }
+  .val {
+    font-family: "IBM Plex Mono"; font-size: 13px; font-variant-numeric: tabular-nums;
+    min-width: 52px; text-align: right; color: var(--ink);
+  }
+  .pad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  input[type=number] {
+    font: inherit; font-family: "IBM Plex Mono"; width: 100%;
+    padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--surface); color: var(--ink);
+  }
+  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .seg { display: flex; gap: 6px; }
+  .seg button { flex: 1; padding: 7px; font-size: 13px; }
+  .seg button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+  .stage-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .stage-head h2 { font-size: 15px; }
+  .count { font-family: "IBM Plex Mono"; font-size: 12px; color: var(--muted); }
+  .stage-head .spacer { flex: 1; }
+
+  .img-drop {
+    border: 1.5px dashed var(--line); border-radius: var(--radius);
+    padding: 48px 24px; text-align: center; color: var(--muted); cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .img-drop:hover, .img-drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  .img-drop strong { color: var(--ink); font-weight: 600; }
+
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+  .thumb {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    overflow: hidden; box-shadow: var(--shadow); animation: pop .3s ease both;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px); } }
+  @media (prefers-reduced-motion: reduce) { .thumb { animation: none; } }
+  .thumb .frame {
+    background: repeating-conic-gradient(var(--surface-2) 0% 25%, var(--surface) 0% 50%) 50% / 18px 18px;
+    display: grid; place-items: center; aspect-ratio: 4/3;
+  }
+  .thumb canvas { max-width: 100%; max-height: 100%; display: block; }
+  .thumb .meta {
+    padding: 8px 10px; font-family: "IBM Plex Mono"; font-size: 11px; color: var(--muted);
+    display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line);
+  }
+  .thumb .meta .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .thumb .x { cursor: pointer; color: var(--muted); background: none; border: none; padding: 0; font-family: inherit; }
+  .thumb .x:hover { color: var(--ink); }
+
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .hidden { display: none; }
+  .footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="mark">Logo&nbsp;Stamp</span>
+      <span class="sub">bulk watermark, in the browser</span>
+    </div>
+    <span class="spacer"></span>
+    <button class="theme-toggle" id="theme" title="Toggle light / dark" aria-label="Toggle theme">&#9680;</button>
+    <button class="primary" id="download" disabled>Download all&nbsp;(.zip)</button>
+  </header>
+
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <div class="field">
+          <label class="h" for="logoInput">Logo</label>
+          <div class="logo-drop" id="logoDrop">
+            <div id="logoPreview">Click or drop a PNG with transparency</div>
+          </div>
+          <input type="file" id="logoInput" accept="image/*" class="hidden">
+        </div>
+
+        <div class="field">
+          <label class="h">Corner</label>
+          <div class="grid3" id="cornerGrid"></div>
+        </div>
+
+        <div class="field">
+          <label class="h" for="size">Logo size &mdash; % of image width</label>
+          <div class="slider-row">
+            <input type="range" id="size" min="3" max="60" value="18">
+            <span class="val" id="sizeVal">18%</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="h" for="opacity">Opacity</label>
+          <div class="slider-row">
+            <input type="range" id="opacity" min="10" max="100" value="100">
+            <span class="val" id="opacityVal">100%</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="h">Padding</label>
+          <div class="pad-grid">
+            <div>
+              <input type="number" id="padX" value="4" min="0" step="0.5" aria-label="Padding X">
+              <div class="hint">X &mdash; % of width</div>
+            </div>
+            <div>
+              <input type="number" id="padY" value="4" min="0" step="0.5" aria-label="Padding Y">
+              <div class="hint">Y &mdash; % of width</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="h">Output format</label>
+          <div class="seg" id="fmt">
+            <button data-fmt="image/png" aria-pressed="true">PNG</button>
+            <button data-fmt="image/jpeg" aria-pressed="false">JPEG</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="stage-head">
+          <h2>Images</h2>
+          <span class="count" id="count">0 loaded</span>
+          <span class="spacer"></span>
+          <button id="addMore" class="hidden">Add more</button>
+          <button id="clear" class="hidden">Clear</button>
+        </div>
+
+        <div class="img-drop" id="imgDrop">
+          <p><strong>Drop images here</strong> or click to browse</p>
+          <p class="hint">JPG, PNG, WebP &mdash; everything stays on your device</p>
+        </div>
+        <input type="file" id="imgInput" accept="image/*" multiple class="hidden">
+
+        <div class="thumbs" id="thumbs" style="margin-top:16px"></div>
+      </div>
+
+      <p class="footer">
+        Logo Stamp runs 100% in your browser &mdash; images are never uploaded to a server.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- theme ----------
+  var root = document.documentElement;
+  var themeBtn = document.getElementById("theme");
+  try {
+    var saved = localStorage.getItem("logostamp-theme");
+    if (saved) root.setAttribute("data-theme", saved);
+  } catch (e) {}
+  themeBtn.addEventListener("click", function () {
+    var cur = root.getAttribute("data-theme");
+    if (!cur) {
+      cur = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    var next = cur === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("logostamp-theme", next); } catch (e) {}
+  });
+
+  // ---------- state ----------
+  var settings = {
+    hpos: "right", vpos: "bottom",
+    size: 18, opacity: 100, padX: 4, padY: 4,
+    fmt: "image/png"
+  };
+  var logoImg = null;
+  var items = []; // { id, name, img, _canvas }
+  var nextId = 1;
+
+  // ---------- corner grid ----------
+  var cornerGrid = document.getElementById("cornerGrid");
+  var cells = [
+    ["left", "top"], ["center", "top"], ["right", "top"],
+    ["left", "middle"], ["center", "middle"], ["right", "middle"],
+    ["left", "bottom"], ["center", "bottom"], ["right", "bottom"]
+  ];
+  cells.forEach(function (c) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = "<span></span>";
+    b.setAttribute("aria-label", c[1] + " " + c[0]);
+    b.setAttribute("aria-pressed", c[0] === settings.hpos && c[1] === settings.vpos ? "true" : "false");
+    b.addEventListener("click", function () {
+      settings.hpos = c[0]; settings.vpos = c[1];
+      Array.prototype.forEach.call(cornerGrid.children, function (x, i) {
+        x.setAttribute("aria-pressed", cells[i][0] === c[0] && cells[i][1] === c[1] ? "true" : "false");
+      });
+      renderAll();
+    });
+    cornerGrid.appendChild(b);
+  });
+
+  // ---------- controls ----------
+  function bindSlider(id, key, suffix) {
+    var el = document.getElementById(id);
+    var out = document.getElementById(id + "Val");
+    el.addEventListener("input", function () {
+      settings[key] = parseFloat(el.value);
+      out.textContent = el.value + suffix;
+      renderAll();
+    });
+  }
+  bindSlider("size", "size", "%");
+  bindSlider("opacity", "opacity", "%");
+
+  ["padX", "padY"].forEach(function (id) {
+    var el = document.getElementById(id);
+    el.addEventListener("input", function () {
+      var v = parseFloat(el.value);
+      settings[id] = isNaN(v) ? 0 : v;
+      renderAll();
+    });
+  });
+
+  var fmt = document.getElementById("fmt");
+  fmt.addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    settings.fmt = b.getAttribute("data-fmt");
+    Array.prototype.forEach.call(fmt.children, function (x) {
+      x.setAttribute("aria-pressed", x === b ? "true" : "false");
+    });
+    renderAll();
+  });
+
+  // ---------- file loading ----------
+  function loadImage(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var im = new Image();
+      im.onload = function () { URL.revokeObjectURL(url); resolve(im); };
+      im.onerror = function () { URL.revokeObjectURL(url); reject(new Error("bad image")); };
+      im.src = url;
+    });
+  }
+
+  // logo
+  var logoInput = document.getElementById("logoInput");
+  var logoDrop = document.getElementById("logoDrop");
+  var logoPreview = document.getElementById("logoPreview");
+  logoDrop.addEventListener("click", function () { logoInput.click(); });
+  logoInput.addEventListener("change", function () {
+    if (logoInput.files[0]) handleLogo(logoInput.files[0]);
+  });
+  dnd(logoDrop, function (files) {
+    var img = firstImage(files);
+    if (img) handleLogo(img);
+  });
+  function handleLogo(file) {
+    loadImage(file).then(function (im) {
+      logoImg = im;
+      logoPreview.innerHTML = "";
+      var p = document.createElement("img");
+      var c = document.createElement("canvas");
+      c.width = im.naturalWidth; c.height = im.naturalHeight;
+      c.getContext("2d").drawImage(im, 0, 0);
+      p.src = c.toDataURL();
+      p.alt = "logo preview";
+      logoPreview.appendChild(p);
+      renderAll();
+    });
+  }
+
+  // images
+  var imgInput = document.getElementById("imgInput");
+  var imgDrop = document.getElementById("imgDrop");
+  imgDrop.addEventListener("click", function () { imgInput.click(); });
+  document.getElementById("addMore").addEventListener("click", function () { imgInput.click(); });
+  imgInput.addEventListener("change", function () {
+    addFiles(imgInput.files); imgInput.value = "";
+  });
+  dnd(imgDrop, addFiles);
+
+  function addFiles(fileList) {
+    var files = Array.prototype.filter.call(fileList, function (f) { return /^image\//.test(f.type); });
+    var jobs = files.map(function (f) {
+      return loadImage(f).then(function (im) {
+        items.push({ id: nextId++, name: f.name, img: im });
+      }).catch(function () {});
+    });
+    Promise.all(jobs).then(function () {
+      rebuildThumbs();
+      updateChrome();
+    });
+  }
+
+  document.getElementById("clear").addEventListener("click", function () {
+    items = []; rebuildThumbs(); updateChrome();
+  });
+
+  // ---------- rendering ----------
+  function computeLayout(iw, ih, lw0, lh0) {
+    var lw = (settings.size / 100) * iw;
+    var lh = lw * (lh0 / lw0);
+    var px = (settings.padX / 100) * iw;
+    var py = (settings.padY / 100) * iw;
+    var x = settings.hpos === "left" ? px
+          : settings.hpos === "right" ? iw - lw - px
+          : (iw - lw) / 2;
+    var y = settings.vpos === "top" ? py
+          : settings.vpos === "bottom" ? ih - lh - py
+          : (ih - lh) / 2;
+    return { x: x, y: y, w: lw, h: lh };
+  }
+
+  function stamp(canvas, img) {
+    var iw = img.naturalWidth, ih = img.naturalHeight;
+    canvas.width = iw; canvas.height = ih;
+    var ctx = canvas.getContext("2d");
+    if (settings.fmt === "image/jpeg") {
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, iw, ih);
+    }
+    ctx.drawImage(img, 0, 0);
+    if (logoImg) {
+      var L = computeLayout(iw, ih, logoImg.naturalWidth, logoImg.naturalHeight);
+      ctx.globalAlpha = settings.opacity / 100;
+      ctx.drawImage(logoImg, L.x, L.y, L.w, L.h);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  var thumbs = document.getElementById("thumbs");
+  function rebuildThumbs() {
+    thumbs.innerHTML = "";
+    items.forEach(function (it) {
+      var card = document.createElement("div");
+      card.className = "thumb";
+      var frame = document.createElement("div");
+      frame.className = "frame";
+      var cv = document.createElement("canvas");
+      frame.appendChild(cv);
+      var meta = document.createElement("div");
+      meta.className = "meta";
+      var nm = document.createElement("span");
+      nm.className = "name"; nm.textContent = it.name;
+      var dl = document.createElement("button");
+      dl.className = "x"; dl.textContent = "save"; dl.type = "button";
+      dl.addEventListener("click", function () {
+        var c = document.createElement("canvas");
+        stamp(c, it.img);
+        canvasToBytes(c).then(function (bytes) {
+          anchorSave(outName(it.name, {}), new Blob([bytes], { type: settings.fmt }));
+        });
+      });
+      var x = document.createElement("button");
+      x.className = "x"; x.textContent = "remove"; x.type = "button";
+      x.addEventListener("click", function () {
+        items = items.filter(function (q) { return q.id !== it.id; });
+        rebuildThumbs(); updateChrome();
+      });
+      meta.appendChild(nm); meta.appendChild(dl); meta.appendChild(x);
+      card.appendChild(frame); card.appendChild(meta);
+      thumbs.appendChild(card);
+      it._canvas = cv;
+    });
+    renderAll();
+  }
+
+  function renderAll() {
+    items.forEach(function (it) {
+      if (it._canvas) stamp(it._canvas, it.img);
+    });
+  }
+
+  function updateChrome() {
+    var n = items.length;
+    document.getElementById("count").textContent = n + " loaded";
+    document.getElementById("download").disabled = n === 0;
+    document.getElementById("addMore").classList.toggle("hidden", n === 0);
+    document.getElementById("clear").classList.toggle("hidden", n === 0);
+    document.getElementById("imgDrop").classList.toggle("hidden", n > 0);
+  }
+
+  // ---------- drag & drop helper ----------
+  function firstImage(files) {
+    return Array.prototype.filter.call(files, function (f) { return /^image\//.test(f.type); })[0];
+  }
+  function dnd(el, onFiles) {
+    ["dragenter", "dragover"].forEach(function (ev) {
+      el.addEventListener(ev, function (e) { e.preventDefault(); el.classList.add("over"); });
+    });
+    ["dragleave", "drop"].forEach(function (ev) {
+      el.addEventListener(ev, function (e) { e.preventDefault(); el.classList.remove("over"); });
+    });
+    el.addEventListener("drop", function (e) {
+      if (e.dataTransfer && e.dataTransfer.files.length) onFiles(e.dataTransfer.files);
+    });
+  }
+
+  // ---------- saving ----------
+  function outName(original, used) {
+    var ext = settings.fmt === "image/jpeg" ? ".jpg" : ".png";
+    var base = original.replace(/\.[^.]+$/, "") + "-stamped";
+    var name = base + ext;
+    if (used[name]) { name = base + "-" + (used[name]++) + ext; }
+    else { used[name] = 1; }
+    return name;
+  }
+
+  function anchorSave(filename, blob) {
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+  }
+
+  function canvasToBytes(canvas) {
+    return new Promise(function (resolve) {
+      canvas.toBlob(function (blob) {
+        blob.arrayBuffer().then(function (ab) { resolve(new Uint8Array(ab)); });
+      }, settings.fmt, settings.fmt === "image/jpeg" ? 0.92 : undefined);
+    });
+  }
+
+  // ---------- ZIP writer (store / no compression) ----------
+  var crcTable = (function () {
+    var t = [];
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(buf) {
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < buf.length; i++) c = crcTable[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  function makeZip(files) {
+    var enc = new TextEncoder();
+    function u16(v) { return [v & 255, (v >>> 8) & 255]; }
+    function u32(v) { return [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]; }
+    var parts = [], central = [], offset = 0;
+    files.forEach(function (f) {
+      var nameBytes = enc.encode(f.name);
+      var data = f.data;
+      var crc = crc32(data);
+      var local = [].concat(
+        u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
+        u32(crc), u32(data.length), u32(data.length),
+        u16(nameBytes.length), u16(0)
+      );
+      parts.push(new Uint8Array(local), nameBytes, data);
+      var cen = [].concat(
+        u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+        u32(crc), u32(data.length), u32(data.length),
+        u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0),
+        u32(offset)
+      );
+      central.push(new Uint8Array(cen), nameBytes);
+      offset += local.length + nameBytes.length + data.length;
+    });
+    var centralStart = offset, centralSize = 0;
+    central.forEach(function (p) { centralSize += p.length; });
+    var end = new Uint8Array([].concat(
+      u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length),
+      u32(centralSize), u32(centralStart), u16(0)
+    ));
+    return new Blob(parts.concat(central, [end]), { type: "application/zip" });
+  }
+
+  var downloadBtn = document.getElementById("download");
+  var downloadLabel = downloadBtn.innerHTML;
+  downloadBtn.addEventListener("click", function () {
+    if (!items.length) return;
+    downloadBtn.disabled = true;
+    var used = {};
+    var jobs = items.map(function (it) {
+      var c = document.createElement("canvas");
+      stamp(c, it.img);
+      return canvasToBytes(c).then(function (bytes) {
+        return { name: outName(it.name, used), data: bytes };
+      });
+    });
+    Promise.all(jobs).then(function (files) {
+      anchorSave("logo-stamped.zip", makeZip(files));
+      downloadBtn.innerHTML = downloadLabel;
+      downloadBtn.disabled = false;
+    });
+  });
+
+  updateChrome();
+})();
+</script>
+</body>
+</html>
