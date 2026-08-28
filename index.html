@@ -67,7 +67,7 @@
   .wrap { max-width: 1240px; margin: 0 auto; padding: 24px; }
 
   header {
-    display: flex; align-items: center; gap: 16px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
     padding-bottom: 20px; border-bottom: 1px solid var(--line); margin-bottom: 24px;
   }
   .brand { display: flex; align-items: baseline; gap: 10px; }
@@ -194,7 +194,8 @@
     </div>
     <span class="spacer"></span>
     <button class="theme-toggle" id="theme" title="Toggle light / dark" aria-label="Toggle theme">&#9680;</button>
-    <button class="primary" id="download" disabled>Download all&nbsp;(.zip)</button>
+    <button id="downloadFiles" disabled>Download files</button>
+    <button class="primary" id="downloadZip" disabled>Download&nbsp;.zip</button>
   </header>
 
   <div class="layout">
@@ -508,7 +509,8 @@
   function updateChrome() {
     var n = items.length;
     document.getElementById("count").textContent = n + " loaded";
-    document.getElementById("download").disabled = n === 0;
+    document.getElementById("downloadZip").disabled = n === 0;
+    document.getElementById("downloadFiles").disabled = n === 0;
     document.getElementById("addMore").classList.toggle("hidden", n === 0);
     document.getElementById("clear").classList.toggle("hidden", n === 0);
     document.getElementById("imgDrop").classList.toggle("hidden", n > 0);
@@ -604,23 +606,51 @@
     return new Blob(parts.concat(central, [end]), { type: "application/zip" });
   }
 
-  var downloadBtn = document.getElementById("download");
-  var downloadLabel = downloadBtn.innerHTML;
-  downloadBtn.addEventListener("click", function () {
-    if (!items.length) return;
-    downloadBtn.disabled = true;
+  function renderedFiles() {
     var used = {};
-    var jobs = items.map(function (it) {
+    return Promise.all(items.map(function (it) {
       var c = document.createElement("canvas");
       stamp(c, it.img);
       return canvasToBytes(c).then(function (bytes) {
         return { name: outName(it.name, used), data: bytes };
       });
+    }));
+  }
+
+  function withBusy(btn, fn) {
+    if (!items.length) return;
+    var zip = document.getElementById("downloadZip");
+    var files = document.getElementById("downloadFiles");
+    var label = btn.textContent;
+    zip.disabled = files.disabled = true;
+    btn.textContent = "Working…";
+    Promise.resolve(fn()).then(function () {
+      btn.textContent = label;
+      zip.disabled = files.disabled = false;
     });
-    Promise.all(jobs).then(function (files) {
-      anchorSave("logo-stamped.zip", makeZip(files));
-      downloadBtn.innerHTML = downloadLabel;
-      downloadBtn.disabled = false;
+  }
+
+  document.getElementById("downloadZip").addEventListener("click", function () {
+    var btn = this;
+    withBusy(btn, function () {
+      return renderedFiles().then(function (files) {
+        anchorSave("logo-stamped.zip", makeZip(files));
+      });
+    });
+  });
+
+  // Direct download — each stamped image straight to the Downloads folder.
+  document.getElementById("downloadFiles").addEventListener("click", function () {
+    var btn = this;
+    withBusy(btn, function () {
+      return renderedFiles().then(function (files) {
+        return files.reduce(function (p, f) {
+          return p.then(function () {
+            anchorSave(f.name, new Blob([f.data], { type: settings.fmt }));
+            return new Promise(function (r) { setTimeout(r, 250); });
+          });
+        }, Promise.resolve());
+      });
     });
   });
 

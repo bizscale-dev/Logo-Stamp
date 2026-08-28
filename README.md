@@ -14,7 +14,8 @@ safe for internal / client assets.
 - Opacity control for watermark-style stamping
 - Padding X / Y, also expressed as a % of image width
 - PNG or JPEG output
-- Per-image "save" or **Download all** as a zip
+- Per-image "save", **Download files** (each image straight to your Downloads
+  folder), or **Download .zip** (one bundle)
 - Light / dark theme (remembers your choice, otherwise follows the OS)
 
 ## Run locally
