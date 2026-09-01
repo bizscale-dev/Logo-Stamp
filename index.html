@@ -492,12 +492,10 @@
   function handleLogo(file) {
     loadImage(file).then(function (im) {
       logoImg = im;
+      logoThumb = makeScaled(im, PREVIEW_MAX);
       logoPreview.innerHTML = "";
       var p = document.createElement("img");
-      var c = document.createElement("canvas");
-      c.width = im.naturalWidth; c.height = im.naturalHeight;
-      c.getContext("2d").drawImage(im, 0, 0);
-      p.src = c.toDataURL();
+      p.src = logoThumb.toDataURL();
       p.alt = "logo preview";
       logoPreview.appendChild(p);
       renderAll();
@@ -518,7 +516,8 @@
     var files = Array.prototype.filter.call(fileList, function (f) { return /^image\//.test(f.type); });
     var jobs = files.map(function (f) {
       return loadImage(f).then(function (im) {
-        items.push({ id: nextId++, name: f.name, img: im, settings: clone(defaults) });
+        items.push({ id: nextId++, name: f.name, img: im, settings: clone(defaults),
+                     base: makeScaled(im, PREVIEW_MAX) });
       }).catch(function () {});
     });
     Promise.all(jobs).then(function () {
@@ -533,6 +532,37 @@
   });
 
   // ---------- rendering ----------
+  // Preview canvases are rendered at a small fixed size so slider drags stay
+  // cheap; the full-resolution stamp() is only used for downloads.
+  var PREVIEW_MAX = 460;
+  var logoThumb = null;
+
+  function makeScaled(img, max) {
+    var iw = img.naturalWidth, ih = img.naturalHeight;
+    var k = Math.min(1, max / iw, max / ih);
+    var c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(iw * k));
+    c.height = Math.max(1, Math.round(ih * k));
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return c;
+  }
+
+  function stampThumb(it) {
+    var base = it.base, cv = it._canvas, s = it.settings;
+    if (!base || !cv) return;
+    cv.width = base.width; cv.height = base.height;
+    var ctx = cv.getContext("2d");
+    if (s.fmt === "image/jpeg") { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height); }
+    ctx.drawImage(base, 0, 0);
+    var lg = logoThumb || logoImg;
+    if (lg) {
+      var L = computeLayout(s, cv.width, cv.height, logoImg.naturalWidth, logoImg.naturalHeight);
+      ctx.globalAlpha = s.opacity / 100;
+      ctx.drawImage(lg, L.x, L.y, L.w, L.h);
+      ctx.globalAlpha = 1;
+    }
+  }
+
   function computeLayout(s, iw, ih, lw0, lh0) {
     var lw = (s.size / 100) * iw;
     var lh = lw * (lh0 / lw0);
@@ -615,9 +645,13 @@
     renderAll();
   }
 
+  var rafPending = false;
   function renderAll() {
-    items.forEach(function (it) {
-      if (it._canvas) stamp(it._canvas, it);
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(function () {
+      rafPending = false;
+      items.forEach(stampThumb);
     });
   }
 
